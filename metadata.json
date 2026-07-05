@@ -1,0 +1,6 @@
+{
+  "name": "Manga Panel Extractor AI",
+  "description": "An AI-powered manga panel detector and crop workspace that identifies bounds, orders right-to-left, and allows manual refinement and batch export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
