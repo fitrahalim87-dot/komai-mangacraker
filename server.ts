@@ -25,28 +25,39 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 let aiInstance: GoogleGenAI | null = null;
 
-function getGeminiClient(): GoogleGenAI {
-  if (!aiInstance) {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("GEMINI_API_KEY environment variable is required but was not provided. Please configure it in your Secrets Panel (in Google AI Studio settings).");
-    }
-    aiInstance = new GoogleGenAI({
-      apiKey: key,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
+function getGeminiClient(customKey?: string): GoogleGenAI {
+  const key = customKey || process.env.GEMINI_API_KEY;
+  if (!key) {
+    throw new Error("Google AI Studio API Key tidak ditemukan. Silakan masukkan API Key yang valid pada layar masuk atau pengaturan aplikasi.");
   }
-  return aiInstance;
+  
+  if (!customKey && aiInstance) {
+    return aiInstance;
+  }
+
+  const client = new GoogleGenAI({
+    apiKey: key,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
+
+  if (!customKey) {
+    aiInstance = client;
+  }
+
+  return client;
 }
 
 // API endpoints
 app.post("/api/detect-panels", async (req, res) => {
   try {
-    const { image, mimeType } = req.body;
+    const { image, mimeType, apiKey } = req.body;
+    const headerKey = req.headers["x-gemini-api-key"] as string;
+    const customKey = headerKey || apiKey;
+
     if (!image) {
       return res.status(400).json({ error: "Missing image data in request body." });
     }
@@ -63,7 +74,7 @@ app.post("/api/detect-panels", async (req, res) => {
       }
     }
 
-    const ai = getGeminiClient();
+    const ai = getGeminiClient(customKey);
 
     const imagePart = {
       inlineData: {

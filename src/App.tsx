@@ -27,7 +27,11 @@ import {
   Battery,
   CloudLightning,
   RefreshCw,
-  FolderOpen
+  FolderOpen,
+  Key,
+  Eye,
+  EyeOff,
+  ExternalLink
 } from "lucide-react";
 import JSZip from "jszip";
 
@@ -46,10 +50,12 @@ export default function App() {
   // Immersive state
   const [fullscreenEnabled, setFullscreenEnabled] = useState<boolean>(true);
 
-  // Fullscreen prompt seen state
-  const [showFullscreenPrompt, setShowFullscreenPrompt] = useState<boolean>(() => {
-    return sessionStorage.getItem("koma_fullscreen_prompt_seen") !== "true";
+  // Google AI Studio API Key State (For users to use their own Gemini key)
+  const [apiKey, setApiKey] = useState<string>(() => {
+    return localStorage.getItem("koma_gemini_api_key") || "";
   });
+  const [tempApiKey, setTempApiKey] = useState(apiKey);
+  const [showKeyInput, setShowKeyInput] = useState(false);
   
   // Theme state
   const [theme, setTheme] = useState<"charcoal" | "cobalt" | "crimson" | "emerald" | "slate">("charcoal");
@@ -169,8 +175,14 @@ export default function App() {
     try {
       const res = await fetch("/api/detect-panels", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64Image })
+        headers: { 
+          "Content-Type": "application/json",
+          "x-gemini-api-key": apiKey
+        },
+        body: JSON.stringify({ 
+          image: base64Image,
+          apiKey: apiKey
+        })
       });
 
       if (!res.ok) {
@@ -630,56 +642,106 @@ export default function App() {
 
   const c = getColors();
 
-  if (showFullscreenPrompt) {
+  if (!apiKey) {
     return (
       <div 
         id="manga-extractor-android-gate" 
-        className="h-[100dvh] w-screen flex flex-col items-center justify-center bg-[#0B0B0E] text-[#F4F4F5] font-sans antialiased select-none p-6 text-center"
+        className="h-[100dvh] w-screen flex flex-col items-center justify-center bg-[#070709] text-[#F4F4F5] font-sans antialiased p-6 text-center overflow-y-auto"
       >
         <motion.div
-          initial={{ scale: 0.92, y: 12, opacity: 0 }}
+          initial={{ scale: 0.95, y: 15, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="max-w-xs w-full bg-[#111115] border border-zinc-800 p-6 rounded-3xl shadow-2xl space-y-4"
+          transition={{ duration: 0.25 }}
+          className="max-w-md w-full bg-[#111115] border border-zinc-800 p-6 sm:p-8 rounded-3xl shadow-2xl space-y-6 text-left"
         >
-          <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/25 rounded-2xl flex items-center justify-center text-indigo-400 mx-auto">
-            <Maximize2 className="h-5 w-5 animate-pulse" />
-          </div>
-          
-          <div className="space-y-1">
-            <div className="flex items-center justify-center gap-1.5 mb-1">
-              <span className="font-mono text-[8px] tracking-widest font-extrabold uppercase text-indigo-400 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-500/20">
-                KOMA-AI
-              </span>
+          {/* Logo / Header */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-400">
+              <Key className="h-6 w-6 animate-pulse" />
             </div>
-            <h3 className="text-sm font-black uppercase text-white tracking-wider">Mode Layar Penuh Wajib</h3>
-            <p className="text-[11px] text-white/50 leading-relaxed">
-              Aplikasi KOMA-AI dirancang khusus untuk kenyamanan menyunting panel manga dalam genggaman. Aktifkan mode layar penuh (immersive fullscreen) untuk melanjutkan masuk ke aplikasi.
+            <div>
+              <span className="font-mono text-[9px] tracking-widest font-extrabold uppercase text-indigo-400 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-500/10">
+                KOMA-AI Setup
+              </span>
+              <h3 className="text-base font-black uppercase text-white tracking-wider mt-1">Setup API Key Gemini</h3>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs text-white/70 leading-relaxed">
+              Selamat datang di <span className="font-bold text-indigo-400">KOMA-AI Panel Extractor</span>! Untuk mendeteksi panel manga secara otomatis menggunakan kecerdasan buatan, silakan masukkan <strong>Google AI Studio API Key</strong> Anda.
+            </p>
+            
+            {/* Guide to Google AI Studio */}
+            <div className="bg-indigo-950/20 border border-indigo-500/10 p-3.5 rounded-2xl space-y-2">
+              <h4 className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                Cara Mendapatkan API Key Gratis:
+              </h4>
+              <ol className="text-[11px] text-white/60 space-y-1 list-decimal pl-4 leading-normal">
+                <li>Klik tombol di bawah untuk membuka halaman pendaftaran.</li>
+                <li>Buat kunci baru dengan mengeklik <strong>Create API Key</strong>.</li>
+                <li>Salin kuncinya lalu tempelkan di kolom input di bawah ini.</li>
+              </ol>
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg transition uppercase tracking-wider cursor-pointer"
+              >
+                <span>Dapatkan API Key Gratis ↗</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Input Box */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-wider text-white/50 block">API Key Anda</label>
+            <div className="relative flex items-center">
+              <input
+                type={showKeyInput ? "text" : "password"}
+                placeholder="AIzaSy..."
+                value={tempApiKey}
+                onChange={(e) => setTempApiKey(e.target.value)}
+                className="w-full bg-black/40 border border-zinc-800 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 outline-hidden transition pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKeyInput(!showKeyInput)}
+                className="absolute right-3 text-zinc-500 hover:text-white transition cursor-pointer"
+              >
+                {showKeyInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="space-y-2 pt-2">
+            <button
+              onClick={() => {
+                const trimmed = tempApiKey.trim();
+                if (!trimmed) {
+                  alert("API Key tidak boleh kosong!");
+                  return;
+                }
+                localStorage.setItem("koma_gemini_api_key", trimmed);
+                setApiKey(trimmed);
+                // Trigger full screen on successful enter
+                if (document.documentElement.requestFullscreen) {
+                  document.documentElement.requestFullscreen().catch(() => {});
+                }
+                setFullscreenEnabled(true);
+              }}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl uppercase tracking-wider transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/20"
+            >
+              <Check className="h-4 w-4" />
+              <span>Simpan &amp; Masuk ke Aplikasi</span>
+            </button>
+            
+            <p className="text-[9px] text-zinc-500 text-center leading-snug">
+              Kunci Anda disimpan secara aman &amp; lokal di browser (localStorage) Anda dan hanya dikirimkan ke server Anda sendiri demi privasi.
             </p>
           </div>
-          
-          <button
-            onClick={() => {
-              if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch((err) => {
-                  console.warn("Fullscreen request blocked inside frame window.", err);
-                });
-              } else if ((document.documentElement as any).webkitRequestFullscreen) {
-                (document.documentElement as any).webkitRequestFullscreen();
-              }
-              setFullscreenEnabled(true);
-              setShowFullscreenPrompt(false);
-              sessionStorage.setItem("koma_fullscreen_prompt_seen", "true");
-            }}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl uppercase tracking-wider transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/20"
-          >
-            <Maximize2 className="h-3.5 w-3.5" />
-            <span>Aktifkan Layar Penuh &amp; Masuk</span>
-          </button>
-          
-          <p className="text-[9px] text-zinc-500 leading-snug">
-            *Merupakan satu-satunya cara wajib untuk masuk dan memulai penyuntingan panel terbaik Anda.
-          </p>
         </motion.div>
       </div>
     );
@@ -1234,6 +1296,64 @@ export default function App() {
                   >
                     {isAiEnabled ? "AKTIF" : "MATI"}
                   </button>
+                </div>
+              </div>
+
+              {/* Google AI Studio API Key Manager */}
+              <div className={`${c.cardBg} rounded-3xl border p-4 shadow-xl space-y-3`}>
+                <h3 className="text-xs font-black uppercase tracking-wider text-indigo-400 mb-1 font-mono flex items-center gap-1.5">
+                  <Key className="h-3.5 w-3.5 text-indigo-400" />
+                  <span>Google AI Studio API Key</span>
+                </h3>
+                <p className="text-[10px] text-white/50 leading-relaxed">
+                  Konfigurasikan API Key Gemini milik Anda untuk memproses pendeteksian panel otomatis.
+                </p>
+                
+                <div className="space-y-2">
+                  <div className="relative flex items-center bg-black/40 rounded-xl border border-white/5">
+                    <input
+                      type={showKeyInput ? "text" : "password"}
+                      placeholder="AIzaSy..."
+                      value={apiKey}
+                      onChange={(e) => {
+                        const val = e.target.value.trim();
+                        setApiKey(val);
+                        localStorage.setItem("koma_gemini_api_key", val);
+                      }}
+                      className="w-full bg-transparent px-3 py-2.5 text-xs text-white outline-hidden focus:ring-0 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKeyInput(!showKeyInput)}
+                      className="absolute right-3 text-zinc-500 hover:text-white transition cursor-pointer"
+                    >
+                      {showKeyInput ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 font-bold text-[10px] rounded-lg text-center uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1.5 border border-indigo-500/20"
+                    >
+                      <span>Dapatkan Key Gratis ↗</span>
+                    </a>
+                    
+                    <button
+                      onClick={() => {
+                        if (confirm("Apakah Anda yakin ingin menghapus API Key ini? Anda harus memasukkannya kembali untuk menggunakan pendeteksian AI.")) {
+                          setApiKey("");
+                          setTempApiKey("");
+                          localStorage.removeItem("koma_gemini_api_key");
+                        }
+                      }}
+                      className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white font-bold text-[10px] rounded-lg transition cursor-pointer border border-rose-500/10"
+                    >
+                      Hapus
+                    </button>
+                  </div>
                 </div>
               </div>
 
